@@ -1,42 +1,66 @@
+package com.banking.model;
+import com.banking.exception.InsufficientFundsException;
+import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 
+@Entity
+@Table(name = "accounts")
 public class Account {
 
-    private final long id;
-    private final long userId;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
+    @Version // keeps entity version to avoid conflicts with updates
+    private Long version;
+
+    @Column(nullable = false)
+    private long userId;
+
+    @Column(nullable = false, precision = 19, scale = 2) //max 19 digits in total including 2 digits after decimal point
     private BigDecimal balance;
-    private final AccountCurrency currency;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AccountCurrency currency;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private AccountStatus status;
 
+    protected Account() { //uses for Hibernate to create Account entity
+    }
 
     public Account(
-            long id,
             long userId,
             BigDecimal balance,
             AccountCurrency currency
-            ){
-
-        validateId(id);
-        validateId(userId);
+    ) {
+        validateUserId(userId);
         validateBalance(balance);
         validateCurrency(currency);
 
-        this.id = id;
         this.userId = userId;
-        this.balance = balance;
+        this.balance = balance.setScale(2);
         this.currency = currency;
         this.status = AccountStatus.ACTIVE;
     }
 
+
+    private void validateScale(BigDecimal value){
+        if(value.stripTrailingZeros().scale() > 2) { //remove extra 0
+            throw new IllegalArgumentException("Amount cannot have more than 2 decimal characters");
+        }
+
+    }
 
     //functions to checking data validate
     private void validateBalance(BigDecimal balance){
         if (balance == null || balance.signum() < 0){
             throw new IllegalArgumentException("Account balance cannot be negative");
         }
-
+        validateScale(balance);
     }
 
     private void validateOperation(BigDecimal amount) {
@@ -46,9 +70,10 @@ public class Account {
         if(amount == null || amount.signum() <= 0) {
             throw new IllegalArgumentException("Amount must be positive");
         }
+        validateScale(amount);
     }
 
-    private void validateId(long id){
+    private void validateUserId(long id){
         if(id <= 0){
             throw new IllegalArgumentException("ID must be positive");
         }
@@ -114,7 +139,7 @@ public class Account {
 
 
     //getters
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
